@@ -1,29 +1,23 @@
-from flask import Flask, request
-import requests
 import os
+import requests
+from flask import Flask, request
 
 app = Flask(__name__)
 
-# 🔐 WSTAW SWOJE DANE
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-BOT_TOKEN = os.getenv("BOT_TOKEN")
 REDIRECT_URI = os.getenv("REDIRECT_URI")
 
 users = []
 
-
 @app.route("/")
 def home():
-    return "Strona działa"
-
+    return "OK"
 
 @app.route("/callback")
 def callback():
     code = request.args.get("code")
-
-    if not code:
-        return "Brak code!"
 
     data = {
         "client_id": CLIENT_ID,
@@ -34,54 +28,34 @@ def callback():
     }
 
     r = requests.post("https://discord.com/api/oauth2/token", data=data)
-    token_json = r.json()
-
-    access_token = token_json.get("access_token")
-
-    if not access_token:
-        return f"Błąd tokena: {token_json}"
+    token = r.json().get("access_token")
+    if not token:
+        return "❌ Błąd autoryzacji"
 
     user = requests.get(
         "https://discord.com/api/users/@me",
-        headers={"Authorization": f"Bearer {access_token}"}
+        headers={"Authorization": f"Bearer {token}"}
     ).json()
 
-    user_id = user.get("id")
+    users.append({"id": user["id"], "token": token})
 
-    if not user_id:
-        return "Błąd pobierania usera"
-
-    # zapis (bez duplikatów)
-    for u in users:
-        if u["id"] == user_id:
-            u["token"] = access_token
-            break
-    else:
-        users.append({"id": user_id, "token": access_token})
-
-    return "Zweryfikowano poprawnie!"
-
+    return "✅ Zweryfikowano!"
 
 @app.route("/dodaj/<guild_id>")
 def dodaj(guild_id):
-    added = 0
-
+    count = 0
     for u in users:
-        r = requests.put(
-            f"https://discord.com/api/guilds/{guild_id}/members/{u['id']}",
-            json={"access_token": u["token"]},
-            headers={
-                "Authorization": BOT_TOKEN,
-                "Content-Type": "application/json"
-            }
-        )
-
-        if r.status_code in [201, 204]:
-            added += 1
-
-    return f"Dodano {added} użytkowników"
-
-
-# 🔴 NAJWAŻNIEJSZE — PORT DLA RENDER
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
+        try:
+            r = requests.put(
+                f"https://discord.com/api/guilds/{guild_id}/members/{u['id']}",
+                json={"access_token": u["token"]},
+                headers={
+                    "Authorization": f"Bot {BOT_TOKEN}",
+                    "Content-Type": "application/json"
+                }
+            )
+            if r.status_code in [201, 204]:
+                count += 1
+        except Exception as e:
+            print("Błąd dodawania:", e)
+    return f"Dodano {count} użytkowników!"

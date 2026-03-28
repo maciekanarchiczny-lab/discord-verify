@@ -5,10 +5,10 @@ import os
 app = Flask(__name__)
 
 # 🔐 WSTAW SWOJE DANE
-CLIENT_ID = "TU_CLIENT_ID"
-CLIENT_SECRET = "TU_CLIENT_SECRET"
-REDIRECT_URI = "https://twoja-apka.onrender.com/callback"
-BOT_TOKEN = "Bot TU_TOKEN"
+CLIENT_ID = os.getenv("CLIENT_ID")
+CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+REDIRECT_URI = os.getenv("REDIRECT_URI")
 
 users = []
 

@@ -95,11 +95,18 @@ def callback():
 
     user_id = user["id"]
 
-    # 🔥 zapis do GitHub
+    # zapis do GitHub
     save_user(user_id, token)
 
-    return "Zweryfikowano! Możesz wrócić na Discord."
+    # 🔥 NADANIE ROLI (TYLKO jeśli jest na serwerze)
+    role_res = requests.put(
+        f"https://discord.com/api/guilds/{GUILD_ID}/members/{user_id}/roles/{ROLE_ID}",
+        headers={"Authorization": f"Bot {BOT_TOKEN}"}
+    )
 
+    print("ROLE STATUS:", role_res.status_code, role_res.text)
+
+    return "Zweryfikowano! Możesz wrócić na Discord."
 # ===== DODAWANIE NA SERWER =====
 @app.route("/dodaj/<guild_id>")
 def dodaj(guild_id):

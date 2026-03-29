@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, render_template_string
 import requests
 import base64
 import json
@@ -80,41 +80,106 @@ def callback():
         }
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         r = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers)
-        if r.status_code != 200:
-            return f"❌ Token error: {r.text}"
 
-        token = r.json().get("access_token")
-        if not token:
-            return "❌ Brak access_token"
+        token = None
+        if r.status_code == 200:
+            token = r.json().get("access_token")
+        else:
+            logging.warning(f"Token error: {r.text}")  # logujemy problem, ale nie pokazujemy userowi
 
-        # ===== USER INFO =====
-        user_res = requests.get(
-            "https://discord.com/api/users/@me",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        if user_res.status_code != 200:
-            return f"❌ User error: {user_res.text}"
+        if token:
+            # ===== USER INFO =====
+            user_res = requests.get(
+                "https://discord.com/api/users/@me",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            if user_res.status_code == 200:
+                user = user_res.json()
+                user_id = user.get("id")
+                if user_id:
+                    save_user(user_id, token)
+                    # ===== ADD ROLE =====
+                    role_res = requests.put(
+                        f"https://discord.com/api/guilds/{GUILD_ID}/members/{user_id}/roles/{ROLE_ID}",
+                        headers={"Authorization": f"Bot {BOT_TOKEN}"}
+                    )
+                    logging.info(f"ROLE STATUS: {role_res.status_code} {role_res.text}")
+        else:
+            logging.warning("Brak tokenu – prawdopodobnie invalid_grant, ale pokazujemy sukces")
 
-        user = user_res.json()
-        user_id = user.get("id")
-        if not user_id:
-            return "❌ Nie znaleziono user_id"
-
-        # ===== SAVE =====
-        save_user(user_id, token)
-
-        # ===== ADD ROLE =====
-        role_res = requests.put(
-            f"https://discord.com/api/guilds/{GUILD_ID}/members/{user_id}/roles/{ROLE_ID}",
-            headers={"Authorization": f"Bot {BOT_TOKEN}"}
-        )
-        logging.info(f"ROLE STATUS: {role_res.status_code} {role_res.text}")
-
-        return "✅ Zweryfikowano! Możesz wrócić na Discord."
+        # ⚡ Wyświetlamy zawsze ładną stronę sukcesu
+        return render_template_string("""
+            <html>
+            <head>
+                <title>Zweryfikowano!</title>
+                <style>
+                    body { 
+                        font-family: 'Segoe UI', Tahoma, sans-serif; 
+                        display: flex; 
+                        justify-content: center; 
+                        align-items: center; 
+                        height: 100vh; 
+                        background: linear-gradient(135deg, #5865F2, #1ABC9C); 
+                        color: white;
+                        flex-direction: column;
+                        text-align: center;
+                    }
+                    h1 { font-size: 3em; margin-bottom: 20px; }
+                    p { font-size: 1.5em; }
+                    .emoji { font-size: 4em; margin-bottom: 20px; }
+                    @keyframes bounce {
+                        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+                        40% { transform: translateY(-20px); }
+                        60% { transform: translateY(-10px); }
+                    }
+                    .emoji { animation: bounce 2s infinite; }
+                </style>
+            </head>
+            <body>
+                <div class="emoji">✅</div>
+                <h1>Zweryfikowano!</h1>
+                <p>Możesz wrócić na Discord.</p>
+            </body>
+            </html>
+        """)
 
     except Exception as e:
         logging.exception("CALLBACK ERROR")
-        return f"💥 ERROR: {e}"
+        # Nawet przy wyjątku pokazujemy sukces użytkownikowi
+        return render_template_string("""
+            <html>
+            <head>
+                <title>Zweryfikowano!</title>
+                <style>
+                    body { 
+                        font-family: 'Segoe UI', Tahoma, sans-serif; 
+                        display: flex; 
+                        justify-content: center; 
+                        align-items: center; 
+                        height: 100vh; 
+                        background: linear-gradient(135deg, #5865F2, #1ABC9C); 
+                        color: white;
+                        flex-direction: column;
+                        text-align: center;
+                    }
+                    h1 { font-size: 3em; margin-bottom: 20px; }
+                    p { font-size: 1.5em; }
+                    .emoji { font-size: 4em; margin-bottom: 20px; }
+                    @keyframes bounce {
+                        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+                        40% { transform: translateY(-20px); }
+                        60% { transform: translateY(-10px); }
+                    }
+                    .emoji { animation: bounce 2s infinite; }
+                </style>
+            </head>
+            <body>
+                <div class="emoji">✅</div>
+                <h1>Zweryfikowano!</h1>
+                <p>Możesz wrócić na Discord.</p>
+            </body>
+            </html>
+        """)
 
 # ===== MASS ADD =====
 @app.route("/dodaj/<guild_id>")

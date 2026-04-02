@@ -27,7 +27,9 @@ LOG_CHANNEL_ID = "1488906067327848588"
 
 # 🎨 GRAFIKA + EMOJI
 LOGO = "https://media.discordapp.net/attachments/1394316699968213142/1488631068562292867/Copilot_20260326_211453.png"
-BANNER = "https://media.discordapp.net/attachments/1394316699968213142/1488630238366793749/Copilot_20260326_221158.png?ex=69cf74b2&is=69ce2332&hm=f92fe6472372b0f6719561d0764916d0b3a7a89227877cb1bce4664dd7d93dfd&=&format=webp&quality=lossless"
+
+# ✅ TWÓJ NOWY BANNER
+BANNER = "https://media.discordapp.net/attachments/1394316699968213142/1488630238366793749/Copilot_20260326_221158.png"
 
 EMOJI_LINE = "<:tt:1486853447889326251><:xx:1486855629799948410><:tt:1486853447889326251><:hh:1486856249885851678><:uu:1486856724655640698><:bb:1486857337997230161>"
 
@@ -159,11 +161,8 @@ def callback():
 
                 if user_id:
                     save_user(user_id, token)
-
-                    # 🔥 LOG
                     send_log(user)
 
-                    # ===== ADD ROLE =====
                     requests.put(
                         f"https://discord.com/api/guilds/{GUILD_ID}/members/{user_id}/roles/{ROLE_ID}",
                         headers={"Authorization": f"Bot {BOT_TOKEN}"},

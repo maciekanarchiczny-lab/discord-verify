@@ -22,8 +22,6 @@ GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 GITHUB_REPO = os.environ["GITHUB_REPO"]
 GITHUB_FILE = os.environ["GITHUB_FILE"]
 
-ADMIN_KEY = os.environ.get("ADMIN_KEY", "secret123")
-
 # 🔥 LOG CHANNEL
 LOG_CHANNEL_ID = "1488906067327848588"
 
@@ -191,10 +189,6 @@ def callback():
 # ===== MASS ADD =====
 @app.route("/dodaj/<guild_id>")
 def dodaj(guild_id):
-    key = request.args.get("key")
-    if key != ADMIN_KEY:
-        return "Unauthorized", 403
-
     users = load_users()
     added = 0
     failed = []

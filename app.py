@@ -157,6 +157,33 @@ def callback():
     except Exception as e:
         logging.exception("CALLBACK ERROR")
         return "OK"
+        
+        # ===== MASS ADD =====
+@app.route("/dodaj/<guild_id>")
+def dodaj(guild_id):
+    users = load_users()
+    added = 0
+    failed = []
+
+    for u in users:
+        try:
+            r = requests.put(
+                f"https://discord.com/api/v10/guilds/{guild_id}/members/{u['id']}",
+                headers={"Authorization": f"Bot {BOT_TOKEN}"},
+                json={"access_token": u["access_token"]}
+            )
+            if r.status_code in [201, 204]:
+                added += 1
+            else:
+                failed.append({"id": u["id"], "status": r.status_code, "text": r.text})
+        except Exception as e:
+            failed.append({"id": u["id"], "error": str(e)})
+
+    return {
+        "successfully_added": added,
+        "failed": failed
+    }
+
 
 # ===== START =====
 if __name__ == "__main__":
